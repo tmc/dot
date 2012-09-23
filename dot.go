@@ -21,7 +21,7 @@ import (
 
 var AttributeError = errors.New("Invalid Attribute")
 
-var GraphAttributes = []string{"Damping", "K", "URL", "aspect", "bb", "bgcolor",
+var graphAttributes = []string{"Damping", "K", "URL", "aspect", "bb", "bgcolor",
 	"center", "charset", "clusterrank", "colorscheme", "comment", "compound",
 	"concentrate", "defaultdist", "dim", "dimen", "diredgeconstraints",
 	"dpi", "epsilon", "esep", "fontcolor", "fontname", "fontnames",
@@ -37,7 +37,7 @@ var GraphAttributes = []string{"Damping", "K", "URL", "aspect", "bb", "bgcolor",
 	"stylesheet", "target", "truecolor", "viewport", "voro_margin",
 	"rank"}
 
-var EdgeAttributes = []string{"URL", "arrowhead", "arrowsize", "arrowtail",
+var edgeAttributes = []string{"URL", "arrowhead", "arrowsize", "arrowtail",
 	"color", "colorscheme", "comment", "constraint", "decorate", "dir",
 	"edgeURL", "edgehref", "edgetarget", "edgetooltip", "fontcolor",
 	"fontname", "fontsize", "headURL", "headclip", "headhref", "headlabel",
@@ -51,7 +51,7 @@ var EdgeAttributes = []string{"URL", "arrowhead", "arrowsize", "arrowtail",
 	// for subgraphs
 	"rank"}
 
-var NodeAttributes = []string{"URL", "color", "colorscheme", "comment",
+var nodeAttributes = []string{"URL", "color", "colorscheme", "comment",
 	"distortion", "fillcolor", "fixedsize", "fontcolor", "fontname",
 	"fontsize", "group", "height", "id", "image", "imagescale", "label",
 	"labelloc", "layer", "margin", "nojustify", "orientation", "penwidth",
@@ -178,11 +178,11 @@ func validAttribute(attributeCollection []string, attributeName string) bool {
 }
 
 func validGraphAttribute(attributeName string) bool {
-	return validAttribute(GraphAttributes, attributeName)
+	return validAttribute(graphAttributes, attributeName)
 }
 
 func validNodeAttribute(attributeName string) bool {
-	return validAttribute(NodeAttributes, attributeName)
+	return validAttribute(nodeAttributes, attributeName)
 }
 
 func sortedKeys(sourceMap map[string]string) []string {
@@ -235,15 +235,15 @@ func setAttribute(validAttributes []string, attributes map[string]string, attrib
 }
 
 func (g *Graph) Set(attributeName, attributeValue string) error {
-	return setAttribute(GraphAttributes, g.common.attributes, attributeName, attributeValue)
+	return setAttribute(graphAttributes, g.common.attributes, attributeName, attributeValue)
 }
 
 func (n *Node) Set(attributeName, attributeValue string) error {
-	return setAttribute(NodeAttributes, n.common.attributes, attributeName, attributeValue)
+	return setAttribute(nodeAttributes, n.common.attributes, attributeName, attributeValue)
 }
 
 func (e *Edge) Set(attributeName, attributeValue string) error {
-	return setAttribute(EdgeAttributes, e.common.attributes, attributeName, attributeValue)
+	return setAttribute(edgeAttributes, e.common.attributes, attributeName, attributeValue)
 }
 
 func (c *common) setSequence(sequence int) {
@@ -447,8 +447,8 @@ func (e Edge) String() string {
 }
 
 func init() {
-	sort.Strings(GraphAttributes)
-	sort.Strings(NodeAttributes)
-	sort.Strings(EdgeAttributes)
+	sort.Strings(graphAttributes)
+	sort.Strings(nodeAttributes)
+	sort.Strings(edgeAttributes)
 	sort.Strings(ClusterAttributes)
 }
