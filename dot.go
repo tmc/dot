@@ -455,5 +455,5 @@ func init() {
 	sort.Strings(graphAttributes)
 	sort.Strings(nodeAttributes)
 	sort.Strings(edgeAttributes)
-	sort.Strings(ClusterAttributes)
+	sort.Strings(clusterAttributes)
 }
