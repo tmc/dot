@@ -61,7 +61,7 @@ var nodeAttributes = []string{"URL", "color", "colorscheme", "comment",
 	// The following are attributes dot2tex
 	"texlbl", "texmode"}
 
-var ClusterAttributes = []string{"K", "URL", "bgcolor", "color", "colorscheme",
+var clusterAttributes = []string{"K", "URL", "bgcolor", "color", "colorscheme",
 	"fillcolor", "fontcolor", "fontname", "fontsize", "label", "labeljust",
 	"labelloc", "lheight", "lp", "lwidth", "nojustify", "pencolor",
 	"penwidth", "peripheries", "sortv", "style", "target", "tooltip"}
