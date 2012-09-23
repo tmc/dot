@@ -85,24 +85,25 @@ type common struct {
 }
 
 type GraphObject interface {
+	Type() string
 	Get(string) string
 	Set(string, string) error
+	GetParentGraph() *Graph
+	SetParentGraph(g *Graph)
 	Sequence() int
-	//	GetAttributes() []string
-	//attributes() map[string]string
 }
 
-type GraphObjectList []GraphObject
+type graphObjects []GraphObject
 
-func (gol GraphObjectList) Len() int {
+func (gol graphObjects) Len() int {
 	return len(gol)
 }
 
-func (gol GraphObjectList) Less(i, j int) bool {
+func (gol graphObjects) Less(i, j int) bool {
 	return gol[i].Sequence() < gol[i].Sequence()
 }
 
-func (gol GraphObjectList) Swap(i, j int) {
+func (gol graphObjects) Swap(i, j int) {
 	gol[i], gol[j] = gol[j], gol[i]
 }
 
@@ -203,6 +204,10 @@ func (gt GraphType) String() string {
 		return "graph"
 	}
 	return "(invalid)"
+}
+
+func (c *common) Type() string {
+	return c._type
 }
 
 func (c *common) GetParentGraph() *Graph {
@@ -330,7 +335,7 @@ func (g Graph) String() string {
 		parts = append(parts, ";\n")
 	}
 
-	objectList := make(GraphObjectList, 0)
+	objectList := make(graphObjects, 0)
 
 	for _, nodes := range g.nodes {
 		for _, node := range nodes {
