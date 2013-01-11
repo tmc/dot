@@ -6,6 +6,35 @@ import (
 	"testing"
 )
 
+func TestQuotingIfNecessary(t *testing.T) {
+	cases := map[string]string{
+		"foo":       "foo",
+		"\"foo\"":   "\"foo\"",
+		"foo bar":   "\"foo bar\"",
+		"Allen, C.": "\"Allen, C.\"",
+	}
+
+	for input, expected := range cases {
+		if quoteIfNecessary(input) != expected {
+			t.Errorf("'%s' != '%s'", quoteIfNecessary(input), expected)
+		}
+	}
+}
+
+func TestGraphPrinting(t *testing.T) {
+	g1 := dot.NewGraph("foo")
+	expected1 := "digraph foo {\n}\n"
+	g2 := dot.NewGraph("foo bar")
+	expected2 := "digraph \"foo bar\" {\n}\n"
+
+	if fmt.Sprint(g1) != expected1 {
+		t.Errorf("'%s' != '%s'", fmt.Sprint(g1), expected1)
+	}
+	if fmt.Sprint(g2) != expected2 {
+		t.Errorf("'%s' != '%s'", fmt.Sprint(g2), expected2)
+	}
+}
+
 func TestCreateSimpleGraphWithNode(t *testing.T) {
 	g := dot.NewGraph("Test")
 
@@ -24,9 +53,9 @@ func TestCreateSimpleGraphWithNode(t *testing.T) {
 	node := dot.NewNode("legend")
 	node.Set("shape", "box")
 	g.AddNode(node)
-	node.Set("label", "mine")
+	node.Set("label", "value with spaces")
 
-	expected = "digraph Test {\nlegend [label=\"mine\", shape=\"box\"];\n}\n"
+	expected = "digraph Test {\nlegend [label=\"value with spaces\", shape=box];\n}\n"
 	if fmt.Sprint(g) != expected {
 		t.Errorf("'%s' != '%s'", fmt.Sprint(g), expected)
 	}
@@ -37,9 +66,7 @@ func TestCreateSimpleNode(t *testing.T) {
 	node.Set("shape", "box")
 	node.Set("label", "mine")
 
-	//@todo remove need for quotes on simple values
-	//expected := "nodename [label=mine, shape=box];"
-	expected := "nodename [label=\"mine\", shape=\"box\"];"
+	expected := "nodename [label=mine, shape=box];"
 	if fmt.Sprint(node) != expected {
 		t.Errorf("'%s' != '%s'", fmt.Sprint(node), expected)
 	}

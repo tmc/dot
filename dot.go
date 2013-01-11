@@ -15,6 +15,7 @@ package dot
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -156,8 +157,18 @@ func indexInSlice(slice []string, toFind string) int {
 	return -1
 }
 
+var alreadyQuotedRegex = regexp.MustCompile("^\".+\"$")
+var validIdentifierRegexWithPort = regexp.MustCompile("^[_a-zA-Z][a-zA-Z0-9_,:\"]*[a-zA-Z0-9_,\"]+$")
+var validIdentifierRegex = regexp.MustCompile("^[_a-zA-Z][a-zA-Z0-9_,]*$")
+
 func needsQuotes(s string) bool {
 	if indexInSlice(dotKeywords, s) != -1 {
+		return false
+	}
+	if alreadyQuotedRegex.MatchString(s) {
+		return false
+	}
+	if validIdentifierRegexWithPort.MatchString(s) || validIdentifierRegex.MatchString(s) {
 		return false
 	}
 
@@ -323,7 +334,7 @@ func (g Graph) String() string {
 	if g.name == "" {
 		parts = append(parts, "{\n")
 	} else {
-		parts = append(parts, fmt.Sprintf("%s %s {\n", g.graphType, g.name))
+		parts = append(parts, fmt.Sprintf("%s %s {\n", g.graphType, quoteIfNecessary(g.name)))
 	}
 
 	attrs := make([]string, 0)
@@ -381,7 +392,8 @@ func NewNode(name string) *Node {
 
 func (n Node) String() string {
 
-	name := n.name
+	name := quoteIfNecessary(n.name)
+
 	parts := make([]string, 0)
 
 	attrs := make([]string, 0)
@@ -427,7 +439,7 @@ func (e Edge) String() string {
 	src, dst := e.Source(), e.Destination()
 	parts := make([]string, 0)
 
-	parts = append(parts, src.Name())
+	parts = append(parts, quoteIfNecessary(src.Name()))
 
 	parent := e.GetParentGraph()
 	if parent != nil && parent.GetRoot() != nil && parent.GetRoot().graphType == DIGRAPH {
@@ -435,12 +447,12 @@ func (e Edge) String() string {
 	} else {
 		parts = append(parts, "--")
 	}
-	parts = append(parts, dst.Name())
+	parts = append(parts, quoteIfNecessary(dst.Name()))
 	//parts = append(parts, fmt.Sprint(dst))
 
 	attrs := make([]string, 0)
 	for _, key := range sortedKeys(e.attributes) {
-		attrs = append(attrs, key+"="+"\""+e.attributes[key]+"\"")
+		attrs = append(attrs, key+"="+quoteIfNecessary(e.attributes[key]))
 	}
 	if len(attrs) > 0 {
 		parts = append(parts, " [")
