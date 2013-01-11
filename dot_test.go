@@ -87,3 +87,19 @@ a -> b
 	}
 
 }
+
+func TestQuoting(t *testing.T) {
+	g := dot.NewGraph("G")
+	a, b := dot.NewNode("192.168.1.1"), dot.NewNode("192.168.1.2")
+	e := dot.NewEdge(a, b)
+	g.AddEdge(e)
+
+	expected := `digraph G {
+"192.168.1.1" -> "192.168.1.2"
+}
+`
+	if fmt.Sprint(g) != expected {
+		t.Errorf("'%s' != '%s'", g, expected)
+	}
+
+}
