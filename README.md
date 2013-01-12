@@ -3,13 +3,14 @@ dot
 
 dot language support for Go
 
-pydot used as a reference
 
-status: alpha
+See http://godoc.org/github.com/traviscline/dot
 
 Todo:
 
 * parser
-* full regression suite
+* regression suite
+
+The pydot library used as a reference
 
 License: MIT
