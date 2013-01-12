@@ -448,7 +448,6 @@ func (e Edge) String() string {
 		parts = append(parts, "--")
 	}
 	parts = append(parts, quoteIfNecessary(dst.Name()))
-	//parts = append(parts, fmt.Sprint(dst))
 
 	attrs := make([]string, 0)
 	for _, key := range sortedKeys(e.attributes) {
@@ -457,7 +456,7 @@ func (e Edge) String() string {
 	if len(attrs) > 0 {
 		parts = append(parts, " [")
 		parts = append(parts, strings.Join(attrs, ", "))
-		parts = append(parts, "] \n")
+		parts = append(parts, "]")
 	}
 
 	return strings.Join(parts, " ")
