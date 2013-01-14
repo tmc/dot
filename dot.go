@@ -101,7 +101,7 @@ func (gol graphObjects) Len() int {
 }
 
 func (gol graphObjects) Less(i, j int) bool {
-	return gol[i].Sequence() < gol[i].Sequence()
+	return gol[i].Sequence() < gol[j].Sequence()
 }
 
 func (gol graphObjects) Swap(i, j int) {
