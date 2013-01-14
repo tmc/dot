@@ -74,6 +74,7 @@ type GraphType int
 const (
 	DIGRAPH GraphType = iota
 	GRAPH
+	SUBGRAPH
 )
 
 // Fields common to all graph object types
@@ -145,6 +146,7 @@ func NewSubgraph(name string) *SubGraph {
 		Graph: *NewGraph(name),
 	}
 	result._type = "subgraph"
+	result.graphType = SUBGRAPH
 	return result
 }
 
@@ -213,6 +215,8 @@ func (gt GraphType) String() string {
 		return "digraph"
 	} else if gt == GRAPH {
 		return "graph"
+	} else if gt == SUBGRAPH {
+		return "subgraph"
 	}
 	return "(invalid)"
 }
@@ -266,8 +270,10 @@ func (c *common) setSequence(sequence int) {
 	c.sequence = sequence
 }
 
+// Set the type of the graph, valid values are GRAPH or DIGRAPH
 func (g *Graph) SetType(t GraphType) {
 	g.graphType = t
+	// @todo consider disallowing setting type to SUBGRAPH
 }
 
 func (c common) Name() string {
