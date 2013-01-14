@@ -95,6 +95,17 @@ func TestSubGraphs(t *testing.T) {
 	if g.GetSubgraphs()[0].Name() != s.Name() {
 		t.Error(g.GetSubgraphs()[0].Name(), " != ", s.Name())
 	}
+
+	expected := `digraph G {
+subgraph SG {
+}
+
+}
+`
+
+	if fmt.Sprint(g) != expected {
+		t.Errorf("'%s' != '%s'", g, expected)
+	}
 }
 
 func TestEdgeAddition(t *testing.T) {
