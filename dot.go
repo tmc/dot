@@ -1,5 +1,5 @@
 /*
-Package dot implements Graphviz's dot language in Go.
+Package dot implements an API to produce Graphviz dot language output.
 
 Basic Graph creation:
 
