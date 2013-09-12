@@ -4,7 +4,7 @@ dot
 dot language support for Go
 
 
-See http://godoc.org/github.com/traviscline/dot
+See http://godoc.org/github.com/tmc/dot
 
 Todo:
 
