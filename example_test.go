@@ -2,7 +2,7 @@ package dot_test
 
 import (
 	"fmt"
-	"github.com/traviscline/dot"
+	"github.com/tmc/dot"
 )
 
 func ExampleNewGraph() {
