@@ -1,9 +1,10 @@
-package dot
+package dot_test
 
 import (
-	dot "."
 	"fmt"
 	"testing"
+
+	"github.com/tmc/dot"
 )
 
 func TestQuotingIfNecessary(t *testing.T) {
@@ -15,8 +16,8 @@ func TestQuotingIfNecessary(t *testing.T) {
 	}
 
 	for input, expected := range cases {
-		if quoteIfNecessary(input) != expected {
-			t.Errorf("'%s' != '%s'", quoteIfNecessary(input), expected)
+		if dot.QuoteIfNecessary(input) != expected {
+			t.Errorf("'%s' != '%s'", dot.QuoteIfNecessary(input), expected)
 		}
 	}
 }

@@ -177,7 +177,7 @@ func needsQuotes(s string) bool {
 	return true
 }
 
-func quoteIfNecessary(s string) (result string) {
+func QuoteIfNecessary(s string) (result string) {
 	if needsQuotes(s) {
 		s = strings.Replace(s, "\"", "\\\"", -1)
 		s = strings.Replace(s, "\n", "\\n", -1)
@@ -340,12 +340,12 @@ func (g Graph) String() string {
 	if g.name == "" {
 		parts = append(parts, "{\n")
 	} else {
-		parts = append(parts, fmt.Sprintf("%s %s {\n", g.graphType, quoteIfNecessary(g.name)))
+		parts = append(parts, fmt.Sprintf("%s %s {\n", g.graphType, QuoteIfNecessary(g.name)))
 	}
 
 	attrs := make([]string, 0)
 	for _, key := range sortedKeys(g.attributes) {
-		attrs = append(attrs, key+"="+quoteIfNecessary(g.attributes[key]))
+		attrs = append(attrs, key+"="+QuoteIfNecessary(g.attributes[key]))
 	}
 	if len(attrs) > 0 {
 		parts = append(parts, strings.Join(attrs, ";\n"))
@@ -398,13 +398,13 @@ func NewNode(name string) *Node {
 
 func (n Node) String() string {
 
-	name := quoteIfNecessary(n.name)
+	name := QuoteIfNecessary(n.name)
 
 	parts := make([]string, 0)
 
 	attrs := make([]string, 0)
 	for _, key := range sortedKeys(n.attributes) {
-		attrs = append(attrs, key+"="+quoteIfNecessary(n.attributes[key]))
+		attrs = append(attrs, key+"="+QuoteIfNecessary(n.attributes[key]))
 	}
 	if len(attrs) > 0 {
 		parts = append(parts, strings.Join(attrs, ", "))
@@ -445,7 +445,7 @@ func (e Edge) String() string {
 	src, dst := e.Source(), e.Destination()
 	parts := make([]string, 0)
 
-	parts = append(parts, quoteIfNecessary(src.Name()))
+	parts = append(parts, QuoteIfNecessary(src.Name()))
 
 	parent := e.GetParentGraph()
 	if parent != nil && parent.GetRoot() != nil && parent.GetRoot().graphType == DIGRAPH {
@@ -453,11 +453,11 @@ func (e Edge) String() string {
 	} else {
 		parts = append(parts, "--")
 	}
-	parts = append(parts, quoteIfNecessary(dst.Name()))
+	parts = append(parts, QuoteIfNecessary(dst.Name()))
 
 	attrs := make([]string, 0)
 	for _, key := range sortedKeys(e.attributes) {
-		attrs = append(attrs, key+"="+quoteIfNecessary(e.attributes[key]))
+		attrs = append(attrs, key+"="+QuoteIfNecessary(e.attributes[key]))
 	}
 	if len(attrs) > 0 {
 		parts = append(parts, " [")
