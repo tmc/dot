@@ -2,6 +2,7 @@ package dot_test
 
 import (
 	"fmt"
+
 	"github.com/tmc/dot"
 )
 
@@ -22,7 +23,9 @@ func ExampleNewGraph() {
 	fmt.Println(g)
 	// Output:
 	// digraph G {
-	// label="Example graph";
+	// graph [
+	//   label="Example graph";
+	// ];
 	// Node1 [color=sienna];
 	// Node2;
 	// Node1 -> Node2  [ dir=both ]

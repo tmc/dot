@@ -111,7 +111,9 @@ subgraph SG {
 
 func TestEdgeAddition(t *testing.T) {
 	simple_graph := `digraph G {
-label="this is a graph";
+graph [
+  label="this is a graph";
+];
 a -> b
 }
 `
