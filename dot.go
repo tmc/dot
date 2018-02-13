@@ -333,7 +333,7 @@ func (g *Graph) GetSubgraphs() (result []*SubGraph) {
 }
 
 func (g Graph) String() string {
-	parts := make([]string, 0)
+	var parts []string
 	if g.strict {
 		parts = append(parts, "strict ")
 	}
@@ -343,13 +343,16 @@ func (g Graph) String() string {
 		parts = append(parts, fmt.Sprintf("%s %s {\n", g.graphType, QuoteIfNecessary(g.name)))
 	}
 
-	attrs := make([]string, 0)
-	for _, key := range sortedKeys(g.attributes) {
-		attrs = append(attrs, key+"="+QuoteIfNecessary(g.attributes[key]))
-	}
-	if len(attrs) > 0 {
-		parts = append(parts, strings.Join(attrs, ";\n"))
-		parts = append(parts, ";\n")
+	if len(g.attributes) > 0 {
+		attrs := make([]string, 0, len(g.attributes))
+		for _, key := range sortedKeys(g.attributes) {
+			attrs = append(attrs, "  "+key+"="+QuoteIfNecessary(g.attributes[key]))
+		}
+		if len(attrs) > 0 {
+			parts = append(parts, "graph [\n")
+			parts = append(parts, strings.Join(attrs, ";\n"))
+			parts = append(parts, ";\n];\n")
+		}
 	}
 
 	objectList := make(graphObjects, 0)
