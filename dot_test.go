@@ -56,7 +56,12 @@ func TestCreateSimpleGraphWithNode(t *testing.T) {
 	g.AddNode(node)
 	node.Set("label", "value with spaces")
 
-	expected = "digraph Test {\nlegend [label=\"value with spaces\", shape=box];\n}\n"
+	node = dot.NewNode("html")
+	node.Set("shape", "plain")
+	node.Set("label", "<<B>bold</B>>")
+	g.AddNode(node)
+
+	expected = "digraph Test {\nlegend [label=\"value with spaces\", shape=box];\nhtml [label=<<B>bold</B>>, shape=plain];\n}\n"
 	if fmt.Sprint(g) != expected {
 		t.Errorf("'%s' != '%s'", fmt.Sprint(g), expected)
 	}

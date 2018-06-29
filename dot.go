@@ -407,7 +407,12 @@ func (n Node) String() string {
 
 	attrs := make([]string, 0)
 	for _, key := range sortedKeys(n.attributes) {
-		attrs = append(attrs, key+"="+QuoteIfNecessary(n.attributes[key]))
+		value := n.attributes[key]
+		if key == "label" && len(value) > 4 && value[0] == '<' && value[len(value)-1] == '>' {
+			attrs = append(attrs, key+"="+value)
+		} else {
+			attrs = append(attrs, key+"="+QuoteIfNecessary(value))
+		}
 	}
 	if len(attrs) > 0 {
 		parts = append(parts, strings.Join(attrs, ", "))
