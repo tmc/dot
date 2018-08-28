@@ -111,6 +111,9 @@ func (gol graphObjects) Swap(i, j int) {
 
 type Graph struct {
 	common
+	nodeAttributes       map[string]string
+	edgeAttributes       map[string]string
+	sameRank             [][]string
 	strict               bool
 	graphType            GraphType
 	supressDisconnected  bool
@@ -128,6 +131,9 @@ func NewGraph(name string) *Graph {
 			name:       name,
 			attributes: make(map[string]string, 0),
 		},
+		nodeAttributes:       make(map[string]string),
+		edgeAttributes:       make(map[string]string),
+		sameRank:             make([][]string, 0),
 		nodes:                make(map[string][]*Node, 0),
 		edges:                make(map[string][]*Edge, 0),
 		subgraphs:            make(map[string][]*SubGraph, 0),
@@ -258,6 +264,14 @@ func (g *Graph) Set(attributeName, attributeValue string) error {
 	return setAttribute(graphAttributes, g.common.attributes, attributeName, attributeValue)
 }
 
+func (g *Graph) SetGlobalNodeAttr(attributeName, attributeValue string) error {
+	return setAttribute(nodeAttributes, g.nodeAttributes, attributeName, attributeValue)
+}
+
+func (g *Graph) SetGlobalEdgeAttr(attributeName, attributeValue string) error {
+	return setAttribute(edgeAttributes, g.edgeAttributes, attributeName, attributeValue)
+}
+
 func (n *Node) Set(attributeName, attributeValue string) error {
 	return setAttribute(nodeAttributes, n.common.attributes, attributeName, attributeValue)
 }
@@ -268,6 +282,11 @@ func (e *Edge) Set(attributeName, attributeValue string) error {
 
 func (c *common) setSequence(sequence int) {
 	c.sequence = sequence
+}
+
+// SameRank enforces alignment of the given nodes
+func (g *Graph) SameRank(nodes []string) {
+	g.sameRank = append(g.sameRank, nodes)
 }
 
 // Set the type of the graph, valid values are GRAPH or DIGRAPH
@@ -355,6 +374,30 @@ func (g Graph) String() string {
 		}
 	}
 
+	if len(g.nodeAttributes) > 0 {
+		attrs := make([]string, 0, len(g.nodeAttributes))
+		for _, key := range sortedKeys(g.nodeAttributes) {
+			attrs = append(attrs, "  "+key+"="+QuoteIfNecessary(g.nodeAttributes[key]))
+		}
+		if len(attrs) > 0 {
+			parts = append(parts, "node [\n")
+			parts = append(parts, strings.Join(attrs, ";\n"))
+			parts = append(parts, ";\n];\n")
+		}
+	}
+
+	if len(g.edgeAttributes) > 0 {
+		attrs := make([]string, 0, len(g.edgeAttributes))
+		for _, key := range sortedKeys(g.edgeAttributes) {
+			attrs = append(attrs, "  "+key+"="+QuoteIfNecessary(g.edgeAttributes[key]))
+		}
+		if len(attrs) > 0 {
+			parts = append(parts, "edge [\n")
+			parts = append(parts, strings.Join(attrs, ";\n"))
+			parts = append(parts, ";\n];\n")
+		}
+	}
+
 	objectList := make(graphObjects, 0)
 
 	for _, nodes := range g.nodes {
@@ -380,6 +423,10 @@ func (g Graph) String() string {
 		//case *Node:
 		//}
 		parts = append(parts, fmt.Sprintf("%s\n", obj))
+	}
+
+	for _, nodes := range g.sameRank {
+		parts = append(parts, fmt.Sprintf("{ rank=same %s }", strings.Join(nodes, " ")))
 	}
 
 	parts = append(parts, "}\n")
