@@ -28,7 +28,6 @@ func ExampleNewGraph() {
 	// ];
 	// Node1 [color=sienna];
 	// Node2;
-	// Node1 -> Node2  [ dir=both ]
+	// Node1 -> Node2 [ dir=both ]
 	// }
-	//
 }
