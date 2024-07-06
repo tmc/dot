@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/tmc/dot"
 )
 
@@ -129,10 +130,12 @@ a -> b
 	g.Set("label", "this is a graph")
 	a, b := dot.NewNode("a"), dot.NewNode("b")
 	e := dot.NewEdge(a, b)
-	g.AddEdge(e)
+	if _, err := g.AddEdge(e); err != nil {
+		t.Error("Error adding edge to graph", err)
+	}
 
-	if fmt.Sprint(g) != simple_graph {
-		t.Errorf("'%s' != '%s'", g, simple_graph)
+	if diff := cmp.Diff(fmt.Sprint(g), simple_graph); diff != "" {
+		t.Errorf("unexpected graph (-got +want):\n%s", diff)
 	}
 
 }

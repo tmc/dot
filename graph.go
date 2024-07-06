@@ -2,8 +2,8 @@ package dot
 
 import (
 	"container/heap"
-	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os/exec"
@@ -14,6 +14,28 @@ import (
 	"sync"
 )
 
+var (
+	ErrNilNode               = errors.New("cannot add nil node")
+	ErrEmptyNodeName         = errors.New("node name cannot be empty")
+	ErrDuplicateNode         = errors.New("node with this name already exists")
+	ErrNilEdge               = errors.New("cannot add nil edge")
+	ErrInvalidEdge           = errors.New("edge must have both source and destination nodes")
+	ErrNodeNotFound          = errors.New("node not found in the graph")
+	ErrNilSubgraph           = errors.New("cannot add nil subgraph")
+	ErrEmptySubgraphName     = errors.New("subgraph name cannot be empty")
+	ErrDuplicateSubgraph     = errors.New("subgraph with this name already exists")
+	ErrInvalidGraphType      = errors.New("invalid graph type")
+	ErrUnsupportedOperation  = errors.New("operation not supported for this graph type")
+	ErrCycleDetected         = errors.New("graph contains a cycle")
+	ErrNoPath                = errors.New("no path exists between the given nodes")
+	ErrDOTParsingFailed      = errors.New("failed to parse DOT input")
+	ErrGraphvizNotFound      = errors.New("Graphviz tools not found in system PATH")
+	ErrInvalidNodeAttribute  = errors.New("invalid node attribute")
+	ErrInvalidEdgeAttribute  = errors.New("invalid edge attribute")
+	ErrInvalidGraphAttribute = errors.New("invalid graph attribute")
+)
+
+// GraphType represents the type of a graph.
 type GraphType int
 
 const (
@@ -35,6 +57,7 @@ func (gt GraphType) String() string {
 	}
 }
 
+// Graph represents a graph in the DOT language.
 type Graph struct {
 	sync.RWMutex
 	Name                 string
@@ -52,6 +75,7 @@ type Graph struct {
 	currentChildSequence int
 }
 
+// NewGraph creates a new graph with the given name.
 func NewGraph(name string) *Graph {
 	return &Graph{
 		Name:           name,
@@ -66,11 +90,17 @@ func NewGraph(name string) *Graph {
 	}
 }
 
-func (g *Graph) SetType(t GraphType) *Graph {
+// SetType sets the type of the graph.
+func (g *Graph) SetType(t GraphType) error {
 	g.Lock()
 	defer g.Unlock()
-	g.graphType = t
-	return g
+	switch t {
+	case DIGRAPH, GRAPH, SUBGRAPH:
+		g.graphType = t
+		return nil
+	default:
+		return ErrInvalidGraphType
+	}
 }
 
 func (g *Graph) SetStrict(strict bool) *Graph {
@@ -84,7 +114,7 @@ func (g *Graph) Set(key, value string) error {
 	g.Lock()
 	defer g.Unlock()
 	if !validGraphAttribute(key) {
-		return fmt.Errorf("invalid graph attribute: %s", key)
+		return ErrInvalidGraphAttribute
 	}
 	g.attributes[key] = value
 	return nil
@@ -94,7 +124,7 @@ func (g *Graph) SetGlobalNodeAttr(key, value string) error {
 	g.Lock()
 	defer g.Unlock()
 	if !validNodeAttribute(key) {
-		return fmt.Errorf("invalid node attribute: %s", key)
+		return ErrInvalidNodeAttribute
 	}
 	g.nodeAttributes[key] = value
 	return nil
@@ -104,43 +134,70 @@ func (g *Graph) SetGlobalEdgeAttr(key, value string) error {
 	g.Lock()
 	defer g.Unlock()
 	if !validEdgeAttribute(key) {
-		return fmt.Errorf("invalid edge attribute: %s", key)
+		return ErrInvalidEdgeAttribute
 	}
 	g.edgeAttributes[key] = value
 	return nil
 }
 
-func (g *Graph) AddNode(n *Node) {
+func (g *Graph) AddNode(n *Node) (*Node, error) {
 	g.Lock()
 	defer g.Unlock()
+	if n == nil {
+		return nil, ErrNilNode
+	}
+	if n.Name() == "" {
+		return nil, ErrEmptyNodeName
+	}
 	name := n.Name()
-	if _, ok := g.nodes[name]; !ok {
+	if _, exists := g.nodes[name]; exists {
+		return nil, fmt.Errorf("%w: %s", ErrDuplicateNode, name)
+	}
+	if g.nodes[name] == nil {
 		g.nodes[name] = make([]*Node, 0)
 	}
 	n.SetSequence(g.getNextSequenceNumber())
 	g.nodes[name] = append(g.nodes[name], n)
+	return n, nil
 }
 
-func (g *Graph) AddEdge(e *Edge) {
+func (g *Graph) AddEdge(e *Edge) (*Edge, error) {
 	g.Lock()
 	defer g.Unlock()
+	if e == nil {
+		return nil, ErrNilEdge
+	}
+	if e.Source() == nil || e.Destination() == nil {
+		return nil, ErrInvalidEdge
+	}
 	name := e.Name()
-	if _, ok := g.edges[name]; !ok {
+	if g.edges[name] == nil {
 		g.edges[name] = make([]*Edge, 0)
 	}
 	e.SetSequence(g.getNextSequenceNumber())
 	g.edges[name] = append(g.edges[name], e)
+	return e, nil
 }
 
-func (g *Graph) AddSubgraph(sg *SubGraph) {
+func (g *Graph) AddSubgraph(sg *SubGraph) (*SubGraph, error) {
 	g.Lock()
 	defer g.Unlock()
+	if sg == nil {
+		return nil, ErrNilSubgraph
+	}
+	if sg.Name == "" {
+		return nil, ErrEmptySubgraphName
+	}
 	name := sg.Name
-	if _, ok := g.subgraphs[name]; !ok {
+	if _, exists := g.subgraphs[name]; exists {
+		return nil, fmt.Errorf("%w: %s", ErrDuplicateSubgraph, name)
+	}
+	if g.subgraphs[name] == nil {
 		g.subgraphs[name] = make([]*SubGraph, 0)
 	}
 	sg.SetSequence(g.getNextSequenceNumber())
 	g.subgraphs[name] = append(g.subgraphs[name], sg)
+	return sg, nil
 }
 
 func (g *Graph) GetSubgraphs() []*SubGraph {
@@ -366,7 +423,7 @@ func (n *Node) Get(key string) string {
 
 func (n *Node) Set(key, value string) error {
 	if !validNodeAttribute(key) {
-		return fmt.Errorf("invalid node attribute: %s", key)
+		return fmt.Errorf("%w: %s", ErrInvalidNodeAttribute, key)
 	}
 	n.attributes[key] = value
 	return nil
@@ -435,7 +492,7 @@ func (e *Edge) Get(key string) string {
 
 func (e *Edge) Set(key, value string) error {
 	if !validEdgeAttribute(key) {
-		return fmt.Errorf("invalid edge attribute: %s", key)
+		return fmt.Errorf("%w: %s", ErrInvalidEdgeAttribute, key)
 	}
 	e.attributes[key] = value
 	return nil
@@ -540,38 +597,6 @@ func newAttributeError(attributeName, objectType string) AttributeError {
 	}
 }
 
-// Context-aware methods for Graph
-
-func (g *Graph) AddNodeWithContext(ctx context.Context, n *Node) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-		g.AddNode(n)
-		return nil
-	}
-}
-
-func (g *Graph) AddEdgeWithContext(ctx context.Context, e *Edge) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-		g.AddEdge(e)
-		return nil
-	}
-}
-
-func (g *Graph) AddSubgraphWithContext(ctx context.Context, sg *SubGraph) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-		g.AddSubgraph(sg)
-		return nil
-	}
-}
-
 // Implement method chaining for Graph
 
 func (g *Graph) SetAttribute(key, value string) *Graph {
@@ -603,23 +628,7 @@ func (e *Edge) SetAttribute(key, value string) *Edge {
 	return e
 }
 
-// Graph validation
-
-// func (g *Graph) Validate() error {
-// 	// Check for cycles in subgraphs
-// 	if err := g.validateSubgraphCycles(); err != nil {
-// 		return err
-// 	}
-
-// 	// Check for duplicate node names
-// 	if err := g.validateUniqueNodeNames(); err != nil {
-// 		return err
-// 	}
-
-// 	// Add more validation checks as needed
-
-// 	return nil
-// }
+// Graph validation helpers
 
 func (g *Graph) validateSubgraphCycles() error {
 	visited := make(map[*SubGraph]bool)
@@ -627,7 +636,7 @@ func (g *Graph) validateSubgraphCycles() error {
 
 	dfs = func(sg *SubGraph) error {
 		if visited[sg] {
-			return fmt.Errorf("cycle detected in subgraph hierarchy")
+			return ErrCycleDetected
 		}
 		visited[sg] = true
 		for _, child := range sg.GetSubgraphs() {
@@ -651,7 +660,7 @@ func (g *Graph) validateUniqueNodeNames() error {
 	nodeNames := make(map[string]bool)
 	for name := range g.nodes {
 		if nodeNames[name] {
-			return fmt.Errorf("duplicate node name: %s", name)
+			return fmt.Errorf("%w: %s", ErrDuplicateNode, name)
 		}
 		nodeNames[name] = true
 	}
@@ -1131,26 +1140,6 @@ func (g *Graph) RemoveSubgraph(name string) {
 	delete(g.subgraphs, name)
 }
 
-// Concurrency-safe graph modification methods
-
-func (g *Graph) AddNodeConcurrent(n *Node) {
-	g.Lock()
-	defer g.Unlock()
-	g.AddNode(n)
-}
-
-func (g *Graph) AddEdgeConcurrent(e *Edge) {
-	g.Lock()
-	defer g.Unlock()
-	g.AddEdge(e)
-}
-
-func (g *Graph) AddSubgraphConcurrent(sg *SubGraph) {
-	g.Lock()
-	defer g.Unlock()
-	g.AddSubgraph(sg)
-}
-
 // Graph cloning
 
 func (g *Graph) Clone() *Graph {
@@ -1299,6 +1288,15 @@ func (g *Graph) Validate() error {
 		return err
 	}
 	if err := g.validateSubgraphs(); err != nil {
+		return err
+	}
+	// Check for cycles in subgraphs
+	if err := g.validateSubgraphCycles(); err != nil {
+		return err
+	}
+
+	// Check for duplicate node names
+	if err := g.validateUniqueNodeNames(); err != nil {
 		return err
 	}
 	return g.validateAttributes()
