@@ -2,6 +2,7 @@ package dot_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/tmc/dot"
@@ -84,8 +85,10 @@ func TestGraphAttributeSetting(t *testing.T) {
 		t.Error("Error setting value on g", g)
 	}
 	g.Set("Damping", "x")
-	if g.Set("this_does_not_exist", "and_should_error") != dot.AttributeError {
-		t.Error("Did not get godot.AttributeError when setting invalid attribute on g", g)
+	if err := g.Set("this_does_not_exist", "and_should_error"); err == nil {
+		t.Error("Did not get error when setting invalid attribute on g", g)
+	} else if !strings.Contains(err.Error(), "invalid graph attribute") {
+		t.Errorf("Expected error message containing 'invalid graph attribute', got %v", err)
 	}
 }
 
@@ -98,8 +101,8 @@ func TestSubGraphs(t *testing.T) {
 		t.Error("Non-empty subgraphs returned:", subgraphs)
 	}
 	g.AddSubgraph(s)
-	if g.GetSubgraphs()[0].Name() != s.Name() {
-		t.Error(g.GetSubgraphs()[0].Name(), " != ", s.Name())
+	if g.GetSubgraphs()[0].Name != s.Name {
+		t.Error(g.GetSubgraphs()[0].Name, " != ", s.Name)
 	}
 
 	expected := `digraph G {
