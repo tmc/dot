@@ -72,3 +72,11 @@ func NewNode(name string) *Node {
 		attributes: make(map[string]string),
 	}
 }
+
+func (n *Node) Clone() *Node {
+	clone := NewNode(n.name)
+	for k, v := range n.attributes {
+		clone.attributes[k] = v
+	}
+	return clone
+}

@@ -1,7 +1,6 @@
 package dot
 
 import (
-	"container/heap"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -88,6 +87,7 @@ func (g *Graph) SetStrict(strict bool) *Graph {
 	return g
 }
 
+// Set an attribute on the graph.
 func (g *Graph) Set(key, value string) error {
 	g.Lock()
 	defer g.Unlock()
@@ -96,6 +96,12 @@ func (g *Graph) Set(key, value string) error {
 	}
 	g.attributes[key] = value
 	return nil
+}
+
+func (g *Graph) Get(key string) string {
+	g.RLock()
+	defer g.RUnlock()
+	return g.attributes[key]
 }
 
 func (g *Graph) SetGlobalNodeAttr(key, value string) error {
@@ -463,32 +469,6 @@ func (e *Edge) SetAttribute(key, value string) *Edge {
 
 // Graph validation helpers
 
-func (g *Graph) validateSubgraphCycles() error {
-	visited := make(map[*SubGraph]bool)
-	var dfs func(*SubGraph) error
-
-	dfs = func(sg *SubGraph) error {
-		if visited[sg] {
-			return ErrCycleDetected
-		}
-		visited[sg] = true
-		for _, child := range sg.GetSubgraphs() {
-			if err := dfs(child); err != nil {
-				return err
-			}
-		}
-		visited[sg] = false
-		return nil
-	}
-
-	for _, sg := range g.GetSubgraphs() {
-		if err := dfs(sg); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (g *Graph) validateUniqueNodeNames() error {
 	nodeNames := make(map[string]bool)
 	for name := range g.nodes {
@@ -581,20 +561,21 @@ func (g *Graph) DFS(startNode string, visitor func(*Node)) {
 
 func (g *Graph) BFS(startNode string, visitor func(*Node)) {
 	visited := make(map[string]bool)
-	queue := []string{startNode}
+	queue := []*Node{g.nodes[startNode][0]}
+
 	for len(queue) > 0 {
-		nodeName := queue[0]
+		node := queue[0]
 		queue = queue[1:]
-		if visited[nodeName] {
-			continue
-		}
-		visited[nodeName] = true
-		nodes := g.nodes[nodeName]
-		for _, node := range nodes {
+
+		if !visited[node.Name()] {
+			visited[node.Name()] = true
 			visitor(node)
-			for _, edge := range g.edges[nodeName] {
-				if !visited[edge.dst.Name()] {
-					queue = append(queue, edge.dst.Name())
+
+			for _, edges := range g.edges {
+				for _, edge := range edges {
+					if edge.src == node && !visited[edge.dst.Name()] {
+						queue = append(queue, edge.dst)
+					}
 				}
 			}
 		}
@@ -603,6 +584,7 @@ func (g *Graph) BFS(startNode string, visitor func(*Node)) {
 
 // Graph operations
 
+// Merge merges the contents of another graph into this graph.
 func (g *Graph) Merge(other *Graph) error {
 	g.Lock()
 	defer g.Unlock()
@@ -645,68 +627,32 @@ func (g *Graph) Diff(other *Graph) (*Graph, error) {
 
 	// Compare nodes
 	for name, nodes := range g.nodes {
-		if otherNodes, ok := other.nodes[name]; !ok {
-			diff.nodes[name] = nodes
-		} else {
+		if _, ok := other.nodes[name]; !ok {
 			for _, node := range nodes {
-				found := false
-				for _, otherNode := range otherNodes {
-					if node.Name() == otherNode.Name() {
-						found = true
-						break
-					}
-				}
-				if !found {
-					diff.AddNode(node)
-				}
+				diff.AddNode(node.Clone())
+			}
+		}
+	}
+	for name, nodes := range other.nodes {
+		if _, ok := g.nodes[name]; !ok {
+			for _, node := range nodes {
+				diff.AddNode(node.Clone())
 			}
 		}
 	}
 
 	// Compare edges
 	for name, edges := range g.edges {
-		if otherEdges, ok := other.edges[name]; !ok {
-			diff.edges[name] = edges
-		} else {
+		if _, ok := other.edges[name]; !ok {
 			for _, edge := range edges {
-				found := false
-				for _, otherEdge := range otherEdges {
-					if edge.Name() == otherEdge.Name() {
-						found = true
-						break
-					}
-				}
-				if !found {
-					diff.AddEdge(edge)
-				}
+				diff.AddEdge(edge.Clone())
 			}
 		}
 	}
-
-	// Compare subgraphs (recursive diff)
-	for name, subgraphs := range g.subgraphs {
-		if otherSubgraphs, ok := other.subgraphs[name]; !ok {
-			diff.subgraphs[name] = subgraphs
-		} else {
-			for _, sg := range subgraphs {
-				found := false
-				for _, otherSg := range otherSubgraphs {
-					if sg.Name == otherSg.Name {
-						subDiff, err := sg.Diff(&otherSg.Graph)
-						if err != nil {
-							return nil, err
-						}
-						if len(subDiff.nodes) > 0 || len(subDiff.edges) > 0 || len(subDiff.subgraphs) > 0 {
-							diff.AddSubgraph(NewSubgraph(sg.Name))
-							diff.subgraphs[sg.Name][0].Merge(subDiff)
-						}
-						found = true
-						break
-					}
-				}
-				if !found {
-					diff.AddSubgraph(sg)
-				}
+	for name, edges := range other.edges {
+		if _, ok := g.edges[name]; !ok {
+			for _, edge := range edges {
+				diff.AddEdge(edge.Clone())
 			}
 		}
 	}
@@ -817,23 +763,6 @@ func (g *Graph) ExportJSON(w io.Writer) error {
 	return encoder.Encode(g)
 }
 
-// Graph import methods
-
-func ImportDOT(r io.Reader) (*Graph, error) {
-	// TODO: Implement DOT parsing
-	return nil, fmt.Errorf("DOT import not implemented")
-}
-
-func ImportJSON(r io.Reader) (*Graph, error) {
-	var g Graph
-	decoder := json.NewDecoder(r)
-	err := decoder.Decode(&g)
-	if err != nil {
-		return nil, err
-	}
-	return &g, nil
-}
-
 // Graph analysis methods
 
 func (g *Graph) GetNodeCount() int {
@@ -880,57 +809,6 @@ func (g *Graph) GetInDegree(nodeName string) int {
 
 func (g *Graph) GetOutDegree(nodeName string) int {
 	return len(g.edges[nodeName])
-}
-
-// Graph layout methods (placeholder for future implementation)
-
-func (g *Graph) ApplyLayout(layout string) error {
-	switch layout {
-	case "dot":
-		return g.applyDotLayout()
-	case "neato":
-		return g.applyNeatoLayout()
-	case "fdp":
-		return g.applyFDPLayout()
-	case "sfdp":
-		return g.applySFDPLayout()
-	case "twopi":
-		return g.applyTwopiLayout()
-	case "circo":
-		return g.applyCircoLayout()
-	default:
-		return fmt.Errorf("unsupported layout: %s", layout)
-	}
-}
-
-func (g *Graph) applyDotLayout() error {
-	// TODO: Implement dot layout algorithm
-	return fmt.Errorf("dot layout not implemented")
-}
-
-func (g *Graph) applyNeatoLayout() error {
-	// TODO: Implement neato layout algorithm
-	return fmt.Errorf("neato layout not implemented")
-}
-
-func (g *Graph) applyFDPLayout() error {
-	// TODO: Implement fdp layout algorithm
-	return fmt.Errorf("fdp layout not implemented")
-}
-
-func (g *Graph) applySFDPLayout() error {
-	// TODO: Implement sfdp layout algorithm
-	return fmt.Errorf("sfdp layout not implemented")
-}
-
-func (g *Graph) applyTwopiLayout() error {
-	// TODO: Implement twopi layout algorithm
-	return fmt.Errorf("twopi layout not implemented")
-}
-
-func (g *Graph) applyCircoLayout() error {
-	// TODO: Implement circo layout algorithm
-	return fmt.Errorf("circo layout not implemented")
 }
 
 // Utility functions for graph manipulation
@@ -1040,7 +918,7 @@ func (g *Graph) Clone() *Graph {
 // Graph comparison
 
 func (g *Graph) Equals(other *Graph) bool {
-	if g.Name != other.Name || g.graphType != other.graphType || g.strict != other.strict {
+	if g.Name != other.Name || g.graphType != other.graphType {
 		return false
 	}
 
@@ -1093,31 +971,49 @@ func (g *Graph) Equals(other *Graph) bool {
 		}
 	}
 
-	return reflect.DeepEqual(g.sameRank, other.sameRank)
+	return true
 }
 
 // Graph validation and error checking
 
 func (g *Graph) Validate() error {
+	visited := make(map[*Graph]bool)
+	return g.validateWithVisited(visited)
+}
+
+func (g *Graph) validateWithVisited(visited map[*Graph]bool) error {
+	if visited[g] {
+		return fmt.Errorf("cyclic subgraph structure detected")
+	}
+	visited[g] = true
+
 	if err := g.validateNodes(); err != nil {
 		return err
 	}
 	if err := g.validateEdges(); err != nil {
 		return err
 	}
-	if err := g.validateSubgraphs(); err != nil {
+	if err := g.validateSubgraphs(visited); err != nil {
 		return err
 	}
-	// Check for cycles in subgraphs
-	if err := g.validateSubgraphCycles(); err != nil {
-		return err
-	}
-
-	// Check for duplicate node names
 	if err := g.validateUniqueNodeNames(); err != nil {
 		return err
 	}
 	return g.validateAttributes()
+}
+
+func (g *Graph) validateSubgraphs(visited map[*Graph]bool) error {
+	for name, subgraphs := range g.subgraphs {
+		for _, sg := range subgraphs {
+			if sg.Name != name {
+				return fmt.Errorf("subgraph name mismatch: %s != %s", sg.Name, name)
+			}
+			if err := sg.validateWithVisited(visited); err != nil {
+				return fmt.Errorf("invalid subgraph %s: %v", name, err)
+			}
+		}
+	}
+	return nil
 }
 
 func (g *Graph) validateNodes() error {
@@ -1129,8 +1025,10 @@ func (g *Graph) validateNodes() error {
 			if node.name != name {
 				return fmt.Errorf("node name mismatch: %s != %s", node.name, name)
 			}
-			if err := validateNodeAttributes(node.attributes); err != nil {
-				return fmt.Errorf("invalid node attributes for %s: %v", name, err)
+			for attr := range node.attributes {
+				if !validNodeAttribute(attr) {
+					return fmt.Errorf("invalid node attribute for %s: %s", name, attr)
+				}
 			}
 		}
 	}
@@ -1146,28 +1044,15 @@ func (g *Graph) validateEdges() error {
 			if _, ok := g.nodes[edge.dst.Name()]; !ok {
 				return fmt.Errorf("edge destination node not found: %s", edge.dst.Name())
 			}
-			if err := validateEdgeAttributes(edge.attributes); err != nil {
-				return fmt.Errorf("invalid edge attributes for %s -> %s: %v", edge.src.Name(), edge.dst.Name(), err)
+			for attr := range edge.attributes {
+				if !validEdgeAttribute(attr) {
+					return fmt.Errorf("invalid edge attribute for %s -> %s: %s", edge.src.Name(), edge.dst.Name(), attr)
+				}
 			}
 		}
 	}
 	return nil
 }
-
-func (g *Graph) validateSubgraphs() error {
-	for name, subgraphs := range g.subgraphs {
-		for _, sg := range subgraphs {
-			if sg.Name != name {
-				return fmt.Errorf("subgraph name mismatch: %s != %s", sg.Name, name)
-			}
-			if err := sg.Validate(); err != nil {
-				return fmt.Errorf("invalid subgraph %s: %v", name, err)
-			}
-		}
-	}
-	return nil
-}
-
 func (g *Graph) validateAttributes() error {
 	return validateGraphAttributes(g.attributes)
 }
@@ -1220,76 +1105,6 @@ func (g *Graph) GetAverageDegree() float64 {
 		return 0
 	}
 	return float64(g.GetEdgeCount()*2) / float64(nodeCount)
-}
-
-func (g *Graph) GetDiameter() int {
-	// Implement Floyd-Warshall algorithm to find the longest shortest path
-	// This is a placeholder implementation and should be optimized for large graphs
-	nodes := g.getAllNodes()
-	n := len(nodes)
-	dist := make([][]int, n)
-	for i := range dist {
-		dist[i] = make([]int, n)
-		for j := range dist[i] {
-			if i == j {
-				dist[i][j] = 0
-			} else {
-				dist[i][j] = int(^uint(0) >> 1) // Initialize with a large value
-			}
-		}
-	}
-
-	// Initialize distances for direct edges
-	for _, edges := range g.edges {
-		for _, edge := range edges {
-			i := indexOf(nodes, edge.src)
-			j := indexOf(nodes, edge.dst)
-			dist[i][j] = 1
-			if g.graphType == GRAPH {
-				dist[j][i] = 1
-			}
-		}
-	}
-
-	// Floyd-Warshall algorithm
-	for k := 0; k < n; k++ {
-		for i := 0; i < n; i++ {
-			for j := 0; j < n; j++ {
-				if dist[i][k]+dist[k][j] < dist[i][j] {
-					dist[i][j] = dist[i][k] + dist[k][j]
-				}
-			}
-		}
-	}
-
-	// Find the maximum finite distance
-	diameter := 0
-	for i := 0; i < n; i++ {
-		for j := 0; j < n; j++ {
-			if dist[i][j] < int(^uint(0)>>1) && dist[i][j] > diameter {
-				diameter = dist[i][j]
-			}
-		}
-	}
-
-	return diameter
-}
-
-func (g *Graph) getAllNodes() []*Node {
-	var nodes []*Node
-	for _, nodeList := range g.nodes {
-		nodes = append(nodes, nodeList...)
-	}
-	return nodes
-}
-
-func indexOf(nodes []*Node, node *Node) int {
-	for i, n := range nodes {
-		if n == node {
-			return i
-		}
-	}
-	return -1
 }
 
 // Graph algorithms
@@ -1346,36 +1161,41 @@ func (g *Graph) ShortestPath(start, end *Node) ([]*Node, error) {
 
 	dist := make(map[*Node]int)
 	prev := make(map[*Node]*Node)
-	queue := make(PriorityQueue, 0)
+	visited := make(map[*Node]bool)
 
 	for _, nodes := range g.nodes {
 		for _, node := range nodes {
 			dist[node] = int(^uint(0) >> 1) // Initialize with a large value
 			prev[node] = nil
-			queue.Push(&Item{node: node, priority: dist[node]})
 		}
 	}
 
 	dist[start] = 0
-	queue.Update(&Item{node: start, priority: 0})
+	queue := []*Node{start}
 
-	for queue.Len() > 0 {
-		item := heap.Pop(&queue).(*Item)
-		u := item.node
+	for len(queue) > 0 {
+		u := queue[0]
+		queue = queue[1:]
 
 		if u == end {
 			break
 		}
 
-		for _, edges := range g.edges {
-			for _, edge := range edges {
-				if edge.src == u {
+		if visited[u] {
+			continue
+		}
+		visited[u] = true
+
+		// Find outgoing edges from u
+		for edgeName, edges := range g.edges {
+			if strings.HasPrefix(edgeName, u.name+"->") {
+				for _, edge := range edges {
 					v := edge.dst
 					alt := dist[u] + 1 // Assuming unit edge weights
 					if alt < dist[v] {
 						dist[v] = alt
 						prev[v] = u
-						queue.Update(&Item{node: v, priority: alt})
+						queue = append(queue, v)
 					}
 				}
 			}
@@ -1392,49 +1212,6 @@ func (g *Graph) ShortestPath(start, end *Node) ([]*Node, error) {
 	}
 
 	return path, nil
-}
-
-// Priority Queue implementation for Dijkstra's algorithm
-
-type Item struct {
-	node     *Node
-	priority int
-	index    int
-}
-
-type PriorityQueue []*Item
-
-func (pq PriorityQueue) Len() int { return len(pq) }
-
-func (pq PriorityQueue) Less(i, j int) bool {
-	return pq[i].priority < pq[j].priority
-}
-
-func (pq PriorityQueue) Swap(i, j int) {
-	pq[i], pq[j] = pq[j], pq[i]
-	pq[i].index = i
-	pq[j].index = j
-}
-
-func (pq *PriorityQueue) Push(x interface{}) {
-	n := len(*pq)
-	item := x.(*Item)
-	item.index = n
-	*pq = append(*pq, item)
-}
-
-func (pq *PriorityQueue) Pop() interface{} {
-	old := *pq
-	n := len(old)
-	item := old[n-1]
-	old[n-1] = nil  // avoid memory leak
-	item.index = -1 // for safety
-	*pq = old[0 : n-1]
-	return item
-}
-
-func (pq *PriorityQueue) Update(item *Item) {
-	heap.Fix(pq, item.index)
 }
 
 // Graph visualization helpers

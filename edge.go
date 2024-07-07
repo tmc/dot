@@ -71,3 +71,11 @@ func (e *Edge) String() string {
 func (e *Edge) Equals(other *Edge) bool {
 	return e.src.Equals(other.src) && e.dst.Equals(other.dst) && reflect.DeepEqual(e.attributes, other.attributes)
 }
+
+func (e *Edge) Clone() *Edge {
+	clone := NewEdge(e.src.Clone(), e.dst.Clone())
+	for k, v := range e.attributes {
+		clone.attributes[k] = v
+	}
+	return clone
+}
