@@ -3,7 +3,6 @@ package dot
 import (
 	"container/heap"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os/exec"
@@ -12,27 +11,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-)
-
-var (
-	ErrNilNode               = errors.New("cannot add nil node")
-	ErrEmptyNodeName         = errors.New("node name cannot be empty")
-	ErrDuplicateNode         = errors.New("node with this name already exists")
-	ErrNilEdge               = errors.New("cannot add nil edge")
-	ErrInvalidEdge           = errors.New("edge must have both source and destination nodes")
-	ErrNodeNotFound          = errors.New("node not found in the graph")
-	ErrNilSubgraph           = errors.New("cannot add nil subgraph")
-	ErrEmptySubgraphName     = errors.New("subgraph name cannot be empty")
-	ErrDuplicateSubgraph     = errors.New("subgraph with this name already exists")
-	ErrInvalidGraphType      = errors.New("invalid graph type")
-	ErrUnsupportedOperation  = errors.New("operation not supported for this graph type")
-	ErrCycleDetected         = errors.New("graph contains a cycle")
-	ErrNoPath                = errors.New("no path exists between the given nodes")
-	ErrDOTParsingFailed      = errors.New("failed to parse DOT input")
-	ErrGraphvizNotFound      = errors.New("Graphviz tools not found in system PATH")
-	ErrInvalidNodeAttribute  = errors.New("invalid node attribute")
-	ErrInvalidEdgeAttribute  = errors.New("invalid edge attribute")
-	ErrInvalidGraphAttribute = errors.New("invalid graph attribute")
 )
 
 // GraphType represents the type of a graph.
@@ -297,27 +275,6 @@ func (g *Graph) getSortedGraphObjects() []fmt.Stringer {
 	return objectList
 }
 
-type SubGraph struct {
-	Graph
-	sequence int
-}
-
-func NewSubgraph(name string) *SubGraph {
-	sg := &SubGraph{
-		Graph: *NewGraph(name),
-	}
-	sg.graphType = SUBGRAPH
-	return sg
-}
-
-func (sg *SubGraph) Sequence() int {
-	return sg.sequence
-}
-
-func (sg *SubGraph) SetSequence(seq int) {
-	sg.sequence = seq
-}
-
 // Helper functions
 
 func sortedKeys(m map[string]string) []string {
@@ -392,130 +349,6 @@ type GraphObject interface {
 type Sequenceable interface {
 	Sequence() int
 	SetSequence(int)
-}
-
-// Node implementation
-
-type Node struct {
-	name       string
-	attributes map[string]string
-	sequence   int
-}
-
-func NewNode(name string) *Node {
-	return &Node{
-		name:       name,
-		attributes: make(map[string]string),
-	}
-}
-
-func (n *Node) Type() string {
-	return "node"
-}
-
-func (n *Node) Name() string {
-	return n.name
-}
-
-func (n *Node) Get(key string) string {
-	return n.attributes[key]
-}
-
-func (n *Node) Set(key, value string) error {
-	if !validNodeAttribute(key) {
-		return fmt.Errorf("%w: %s", ErrInvalidNodeAttribute, key)
-	}
-	n.attributes[key] = value
-	return nil
-}
-
-func (n *Node) Sequence() int {
-	return n.sequence
-}
-
-func (n *Node) SetSequence(seq int) {
-	n.sequence = seq
-}
-
-func (n *Node) String() string {
-	name := QuoteIfNecessary(n.name)
-	attrs := make([]string, 0, len(n.attributes))
-	for _, key := range sortedKeys(n.attributes) {
-		value := n.attributes[key]
-		if key == "label" && len(value) > 4 && value[0] == '<' && value[len(value)-1] == '>' {
-			attrs = append(attrs, fmt.Sprintf("%s=%s", key, value))
-		} else {
-			attrs = append(attrs, fmt.Sprintf("%s=%s", key, QuoteIfNecessary(value)))
-		}
-	}
-	if len(attrs) > 0 {
-		return fmt.Sprintf("%s [%s];", name, strings.Join(attrs, ", "))
-	}
-	return name + ";"
-}
-
-// Edge implementation
-
-type Edge struct {
-	src, dst   *Node
-	attributes map[string]string
-	sequence   int
-}
-
-func NewEdge(src, dst *Node) *Edge {
-	return &Edge{
-		src:        src,
-		dst:        dst,
-		attributes: make(map[string]string),
-	}
-}
-
-func (e *Edge) Source() *Node {
-	return e.src
-}
-
-func (e *Edge) Destination() *Node {
-	return e.dst
-}
-
-func (e *Edge) Type() string {
-	return "edge"
-}
-
-func (e *Edge) Name() string {
-	return fmt.Sprintf("%s->%s", e.src.Name(), e.dst.Name())
-}
-
-func (e *Edge) Get(key string) string {
-	return e.attributes[key]
-}
-
-func (e *Edge) Set(key, value string) error {
-	if !validEdgeAttribute(key) {
-		return fmt.Errorf("%w: %s", ErrInvalidEdgeAttribute, key)
-	}
-	e.attributes[key] = value
-	return nil
-}
-
-func (e *Edge) Sequence() int {
-	return e.sequence
-}
-
-func (e *Edge) SetSequence(seq int) {
-	e.sequence = seq
-}
-
-func (e *Edge) String() string {
-	src, dst := QuoteIfNecessary(e.src.Name()), QuoteIfNecessary(e.dst.Name())
-	attrs := make([]string, 0, len(e.attributes))
-	for _, key := range sortedKeys(e.attributes) {
-		attrs = append(attrs, fmt.Sprintf("%s=%s", key, QuoteIfNecessary(e.attributes[key])))
-	}
-	if len(attrs) > 0 {
-		return fmt.Sprintf("%s -> %s [ %s ]", src, dst, strings.Join(attrs, ", "))
-	}
-	return fmt.Sprintf("%s -> %s", src, dst)
 }
 
 // Constants and variables
@@ -1263,21 +1096,6 @@ func (g *Graph) Equals(other *Graph) bool {
 	return reflect.DeepEqual(g.sameRank, other.sameRank)
 }
 
-// Node comparison
-func (n *Node) Equals(other *Node) bool {
-	return n.name == other.name && reflect.DeepEqual(n.attributes, other.attributes)
-}
-
-// Edge comparison
-func (e *Edge) Equals(other *Edge) bool {
-	return e.src.Equals(other.src) && e.dst.Equals(other.dst) && reflect.DeepEqual(e.attributes, other.attributes)
-}
-
-// SubGraph comparison
-func (sg *SubGraph) Equals(other *SubGraph) bool {
-	return sg.Graph.Equals(&other.Graph)
-}
-
 // Graph validation and error checking
 
 func (g *Graph) Validate() error {
@@ -1663,22 +1481,4 @@ func (g *Graph) ToSVG(filename string) error {
 	}
 
 	return cmd.Wait()
-}
-
-// Utility functions
-
-func escapeString(s string) string {
-	s = strings.Replace(s, "\\", "\\\\", -1)
-	s = strings.Replace(s, "\"", "\\\"", -1)
-	s = strings.Replace(s, "\n", "\\n", -1)
-	s = strings.Replace(s, "\r", "\\r", -1)
-	return s
-}
-
-func unescapeString(s string) string {
-	s = strings.Replace(s, "\\\\", "\\", -1)
-	s = strings.Replace(s, "\\\"", "\"", -1)
-	s = strings.Replace(s, "\\n", "\n", -1)
-	s = strings.Replace(s, "\\r", "\r", -1)
-	return s
 }
