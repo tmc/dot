@@ -428,45 +428,6 @@ func (e AttributeError) Error() string {
 	return fmt.Sprintf("invalid %s attribute: %s", e.ObjectType, e.AttributeName)
 }
 
-// Helper function to create a new AttributeError
-func newAttributeError(attributeName, objectType string) AttributeError {
-	return AttributeError{
-		AttributeName: attributeName,
-		ObjectType:    objectType,
-	}
-}
-
-// Implement method chaining for Graph
-
-func (g *Graph) SetAttribute(key, value string) *Graph {
-	g.Set(key, value)
-	return g
-}
-
-func (g *Graph) SetGlobalNodeAttribute(key, value string) *Graph {
-	g.SetGlobalNodeAttr(key, value)
-	return g
-}
-
-func (g *Graph) SetGlobalEdgeAttribute(key, value string) *Graph {
-	g.SetGlobalEdgeAttr(key, value)
-	return g
-}
-
-// Implement method chaining for Node
-
-func (n *Node) SetAttribute(key, value string) *Node {
-	n.Set(key, value)
-	return n
-}
-
-// Implement method chaining for Edge
-
-func (e *Edge) SetAttribute(key, value string) *Edge {
-	e.Set(key, value)
-	return e
-}
-
 // Graph validation helpers
 
 func (g *Graph) validateUniqueNodeNames() error {
@@ -629,14 +590,18 @@ func (g *Graph) Diff(other *Graph) (*Graph, error) {
 	for name, nodes := range g.nodes {
 		if _, ok := other.nodes[name]; !ok {
 			for _, node := range nodes {
-				diff.AddNode(node.Clone())
+				if _, err := diff.AddNode(node.Clone()); err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
 	for name, nodes := range other.nodes {
 		if _, ok := g.nodes[name]; !ok {
 			for _, node := range nodes {
-				diff.AddNode(node.Clone())
+				if _, err := diff.AddNode(node.Clone()); err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
@@ -645,14 +610,18 @@ func (g *Graph) Diff(other *Graph) (*Graph, error) {
 	for name, edges := range g.edges {
 		if _, ok := other.edges[name]; !ok {
 			for _, edge := range edges {
-				diff.AddEdge(edge.Clone())
+				if _, err := diff.AddEdge(edge.Clone()); err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
 	for name, edges := range other.edges {
 		if _, ok := g.edges[name]; !ok {
 			for _, edge := range edges {
-				diff.AddEdge(edge.Clone())
+				if _, err := diff.AddEdge(edge.Clone()); err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
@@ -1055,24 +1024,6 @@ func (g *Graph) validateEdges() error {
 }
 func (g *Graph) validateAttributes() error {
 	return validateGraphAttributes(g.attributes)
-}
-
-func validateNodeAttributes(attrs map[string]string) error {
-	for attr := range attrs {
-		if !validNodeAttribute(attr) {
-			return fmt.Errorf("invalid node attribute: %s", attr)
-		}
-	}
-	return nil
-}
-
-func validateEdgeAttributes(attrs map[string]string) error {
-	for attr := range attrs {
-		if !validEdgeAttribute(attr) {
-			return fmt.Errorf("invalid edge attribute: %s", attr)
-		}
-	}
-	return nil
 }
 
 func validateGraphAttributes(attrs map[string]string) error {
