@@ -379,7 +379,7 @@ var graphAttributes = []string{
 	"outputorder", "overlap", "overlap_scaling", "pack", "packmode", "pad",
 	"page", "pagedir", "quadtree", "quantum", "rankdir", "ranksep", "ratio",
 	"remincross", "repulsiveforce", "resolution", "root", "rotate", "searchsize",
-	"sep", "showboxes", "size", "smoothing", "sortv", "splines", "start",
+	"sep", "showboxes", "size", "smoothing", "sortv", "splines", "start", "style",
 	"stylesheet", "target", "truecolor", "viewport", "voro_margin", "rank",
 }
 
